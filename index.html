@@ -1,0 +1,548 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="실시간 월급 현황을 확인하는 앱">
+    <meta name="theme-color" content="#2563EB">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-title" content="월급 루팡기">
+    <title>월급 루팡기 - 실시간 월급 현황</title>
+
+    <!-- PWA Manifest -->
+    <link rel="manifest" href="/manifest.json">
+
+    <!-- 앱 아이콘 -->
+    <link rel="icon" type="image/png" sizes="192x192" href="/icon-192.png">
+    <link rel="icon" type="image/png" sizes="512x512" href="/icon-512.png">
+    <link rel="apple-touch-icon" href="/icon-192.png">
+
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @keyframes pulse-glow {
+            0%, 100% { text-shadow: 0 0 20px rgba(59, 130, 246, 0.5); }
+            50% { text-shadow: 0 0 30px rgba(59, 130, 246, 0.8); }
+        }
+        .earning-amount {
+            animation: pulse-glow 2s ease-in-out infinite;
+        }
+        @keyframes monthly-glow {
+            0%, 100% { text-shadow: 0 0 15px rgba(16, 185, 129, 0.4); }
+            50% { text-shadow: 0 0 25px rgba(16, 185, 129, 0.6); }
+        }
+        .monthly-amount {
+            animation: monthly-glow 3s ease-in-out infinite;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .message-fade {
+            animation: fadeIn 0.5s ease-in-out;
+        }
+        @keyframes slideUp {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .slide-up {
+            animation: slideUp 0.6s ease-out;
+        }
+    </style>
+</head>
+<body class="bg-gradient-to-br from-blue-50 to-indigo-100 min-h-screen p-4 py-8">
+    <div class="max-w-4xl mx-auto">
+        <!-- 헤더 -->
+        <div class="text-center mb-8">
+            <h1 class="text-5xl font-bold text-gray-800 mb-2">💰 실시간 월급 현황</h1>
+            <p class="text-gray-600 text-lg">당신이 일하는 순간, 돈은 계속 쌓입니다</p>
+        </div>
+
+        <!-- 월급 입력 섹션 -->
+        <div id="inputSection" class="bg-white rounded-3xl shadow-2xl p-8 mb-6">
+            <label class="block text-lg font-semibold text-gray-700 mb-3">월급을 입력해주세요</label>
+            <div class="flex gap-3">
+                <input
+                    type="number"
+                    id="salaryInput"
+                    placeholder="예: 3000000"
+                    class="flex-1 px-4 py-3 border-2 border-gray-300 rounded-xl focus:border-blue-500 focus:outline-none text-lg"
+                >
+                <button
+                    onclick="startTracking()"
+                    class="px-8 py-3 bg-blue-600 text-white font-bold rounded-xl hover:bg-blue-700 transition-all transform hover:scale-105"
+                >
+                    시작
+                </button>
+            </div>
+        </div>
+
+        <!-- 실시간 수익 표시 -->
+        <div id="earningSection" class="hidden space-y-6">
+            <!-- 오늘의 수익 카드 -->
+            <div class="bg-white rounded-3xl shadow-2xl p-8 slide-up">
+                <div class="text-center mb-6">
+                    <p class="text-gray-600 text-xl mb-3 flex items-center justify-center gap-2">
+                        <span class="text-2xl">📈</span>
+                        <span class="font-semibold">오늘의 수익</span>
+                    </p>
+                    <div class="earning-amount text-7xl font-bold text-blue-600 mb-2">
+                        ₩<span id="currentEarning">0</span>
+                    </div>
+                    <p class="text-gray-500 text-sm">
+                        <span id="timeInfo"></span>
+                    </p>
+                </div>
+
+                <!-- 오늘의 진행 바 -->
+                <div class="mb-6">
+                    <div class="flex justify-between text-sm text-gray-600 mb-2">
+                        <span class="font-medium">오늘의 진행률</span>
+                        <span id="progressPercent" class="font-bold text-blue-600">0%</span>
+                    </div>
+                    <div class="w-full bg-gray-200 rounded-full h-4 overflow-hidden">
+                        <div id="progressBar" class="bg-gradient-to-r from-blue-500 to-blue-600 h-4 rounded-full transition-all duration-1000" style="width: 0%"></div>
+                    </div>
+                </div>
+
+                <!-- 통계 정보 -->
+                <div class="grid grid-cols-3 gap-4">
+                    <div class="bg-blue-50 rounded-xl p-4 text-center">
+                        <p class="text-gray-600 text-sm mb-1">시급</p>
+                        <p class="text-blue-600 font-bold text-lg">₩<span id="hourlyRate">0</span></p>
+                    </div>
+                    <div class="bg-green-50 rounded-xl p-4 text-center">
+                        <p class="text-gray-600 text-sm mb-1">분급</p>
+                        <p class="text-green-600 font-bold text-lg">₩<span id="minuteRate">0</span></p>
+                    </div>
+                    <div class="bg-purple-50 rounded-xl p-4 text-center">
+                        <p class="text-gray-600 text-sm mb-1">초급</p>
+                        <p class="text-purple-600 font-bold text-lg">₩<span id="secondRate">0</span></p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 이번 달 누적 현황 카드 -->
+            <div class="bg-gradient-to-br from-green-50 to-emerald-50 rounded-3xl shadow-2xl p-8 slide-up" style="animation-delay: 0.1s;">
+                <div class="text-center mb-6">
+                    <p class="text-gray-700 text-xl mb-3 flex items-center justify-center gap-2">
+                        <span class="text-2xl">📊</span>
+                        <span class="font-semibold">이번 달 누적 현황</span>
+                    </p>
+                    <div class="monthly-amount text-6xl font-bold text-green-600 mb-2">
+                        ₩<span id="monthlyEarning">0</span>
+                    </div>
+                    <p class="text-gray-600 text-sm">
+                        <span id="monthlyInfo"></span>
+                    </p>
+                </div>
+
+                <!-- 월별 진행 바 -->
+                <div class="mb-6">
+                    <div class="flex justify-between text-sm text-gray-700 mb-2">
+                        <span class="font-medium">이번 달 진행률</span>
+                        <span id="monthlyProgressPercent" class="font-bold text-green-600">0%</span>
+                    </div>
+                    <div class="w-full bg-white rounded-full h-5 overflow-hidden shadow-inner">
+                        <div id="monthlyProgressBar" class="bg-gradient-to-r from-green-500 to-emerald-600 h-5 rounded-full transition-all duration-1000" style="width: 0%"></div>
+                    </div>
+                </div>
+
+                <!-- 월별 통계 -->
+                <div class="grid grid-cols-2 gap-4 mb-4">
+                    <div class="bg-white rounded-xl p-4">
+                        <p class="text-gray-600 text-sm mb-1">오늘까지 번 돈</p>
+                        <p class="text-green-600 font-bold text-xl">₩<span id="earnedSoFar">0</span></p>
+                    </div>
+                    <div class="bg-white rounded-xl p-4">
+                        <p class="text-gray-600 text-sm mb-1">이번 달 남은 금액</p>
+                        <p class="text-blue-600 font-bold text-xl">₩<span id="remainingAmount">0</span></p>
+                    </div>
+                </div>
+
+                <!-- 영업일 정보 -->
+                <div class="bg-white rounded-xl p-4">
+                    <div class="flex justify-between items-center">
+                        <div>
+                            <p class="text-gray-600 text-sm">이번 달 영업일</p>
+                            <p class="text-gray-800 font-bold text-lg">
+                                <span id="currentWorkingDay">0</span> / <span id="totalWorkingDays">0</span>일
+                            </p>
+                        </div>
+                        <div class="text-right">
+                            <p class="text-gray-600 text-sm">남은 영업일</p>
+                            <p class="text-gray-800 font-bold text-lg"><span id="remainingWorkingDays">0</span>일</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 재설정 버튼 -->
+            <div class="text-center">
+                <button
+                    onclick="resetTracking()"
+                    class="px-6 py-2 text-gray-600 hover:text-gray-800 font-medium hover:bg-white rounded-xl transition-all"
+                >
+                    월급 다시 설정하기
+                </button>
+            </div>
+        </div>
+
+        <!-- 응원 메시지 카드 -->
+        <div id="messageCard" class="hidden bg-white rounded-2xl shadow-xl p-6 text-center message-fade">
+            <p id="motivationalMessage" class="text-lg text-gray-700 font-medium"></p>
+        </div>
+    </div>
+
+    <script>
+        let salary = 0;
+        let updateInterval = null;
+        let messageInterval = null;
+
+        const motivationalMessages = {
+            working: [
+                "💪 조금만 더 버티세요! 퇴근까지 {minutes}분 남았습니다",
+                "🔥 당신의 가치는 매 순간 증가하고 있습니다!",
+                "⏰ 퇴근까지 {minutes}분, 당신은 해낼 수 있어요!",
+                "✨ 지금 이 순간도 돈이 쌓이고 있습니다",
+                "🎯 목표를 향해 달려가는 당신, 멋져요!",
+                "💎 당신은 소중한 인재입니다",
+                "🚀 열심히 일하는 당신을 응원합니다!",
+                "⭐ 오늘도 최선을 다하는 당신이 자랑스러워요"
+            ],
+            afterWork: [
+                "🎉 오늘도 고생 많으셨어요, 당신은 소중한 인재입니다!",
+                "👏 하루 업무 완료! 푹 쉬세요",
+                "🌙 수고하셨습니다. 내일도 화이팅!",
+                "💝 오늘 하루도 열심히 사셨네요",
+                "🏆 오늘의 목표 달성! 당신은 최고예요",
+                "🎊 퇴근 축하드립니다!"
+            ],
+            beforeWork: [
+                "☀️ 좋은 아침입니다! 오늘도 화이팅!",
+                "🌅 새로운 하루의 시작, 파이팅!",
+                "💪 오늘도 멋진 하루 되세요!",
+                "🎈 출근 전 잠시 휴식하세요",
+                "✨ 곧 시작될 하루를 응원합니다!"
+            ],
+            weekend: [
+                "🎮 주말엔 푹 쉬세요!",
+                "🌴 행복한 주말 보내세요",
+                "😴 주말엔 재충전의 시간!",
+                "🎨 여유로운 주말 되세요",
+                "🍀 소중한 휴식 시간을 즐기세요"
+            ],
+            monthly: [
+                "🎯 이번 달도 벌써 {percent}%나 해내셨어요!",
+                "🌟 한 달의 {percent}%를 완주하셨습니다!",
+                "💪 {percent}% 달성! 정말 대단해요!",
+                "🔥 이번 달 {percent}%를 돌파했습니다!",
+                "✨ 벌써 {percent}%! 순조롭게 진행중입니다!",
+                "🎊 월급의 {percent}%를 벌었어요! 계속 화이팅!",
+                "💎 한 달의 절반 이상을 달성하신 당신, 최고예요!",
+                "🚀 이번 달 목표까지 순항중입니다!"
+            ]
+        };
+
+        function isWeekday(date) {
+            const day = date.getDay();
+            return day !== 0 && day !== 6; // 0: 일요일, 6: 토요일
+        }
+
+        function isWorkingHours(date) {
+            const hours = date.getHours();
+            return hours >= 9 && hours < 18;
+        }
+
+        // 이번 달의 전체 영업일 수 계산
+        function getWorkingDaysInMonth(year, month) {
+            const daysInMonth = new Date(year, month + 1, 0).getDate();
+            let workingDays = 0;
+
+            for (let day = 1; day <= daysInMonth; day++) {
+                const date = new Date(year, month, day);
+                if (isWeekday(date)) {
+                    workingDays++;
+                }
+            }
+
+            return workingDays;
+        }
+
+        // 오늘이 이번 달의 몇 번째 영업일인지 계산
+        function getWorkingDayNumber(year, month, today) {
+            let workingDayNumber = 0;
+
+            for (let day = 1; day <= today; day++) {
+                const date = new Date(year, month, day);
+                if (isWeekday(date)) {
+                    workingDayNumber++;
+                }
+            }
+
+            return workingDayNumber;
+        }
+
+        // 이번 달 누적 수익 계산
+        function calculateMonthlyEarnings() {
+            const now = new Date();
+            const year = now.getFullYear();
+            const month = now.getMonth();
+            const today = now.getDate();
+
+            const totalWorkingDays = getWorkingDaysInMonth(year, month);
+            const currentWorkingDay = getWorkingDayNumber(year, month, today);
+            const remainingWorkingDays = totalWorkingDays - currentWorkingDay;
+
+            const dailyWage = salary / totalWorkingDays;
+
+            // 오늘까지 번 돈 (오늘 포함)
+            let earnedSoFar = 0;
+
+            // 이미 지난 날들의 급여 (오늘 제외)
+            if (currentWorkingDay > 1) {
+                earnedSoFar = dailyWage * (currentWorkingDay - 1);
+            }
+
+            // 오늘의 현재까지 번 돈 추가
+            if (isWeekday(now)) {
+                const todayEarning = calculateEarnings().earning;
+                earnedSoFar += todayEarning;
+            }
+
+            const remainingAmount = salary - earnedSoFar;
+            const progress = (earnedSoFar / salary) * 100;
+
+            return {
+                totalWorkingDays,
+                currentWorkingDay,
+                remainingWorkingDays,
+                earnedSoFar,
+                remainingAmount,
+                progress
+            };
+        }
+
+        function calculateEarnings() {
+            const now = new Date();
+
+            if (!isWeekday(now)) {
+                return {
+                    status: 'weekend',
+                    earning: 0,
+                    progress: 0
+                };
+            }
+
+            const hours = now.getHours();
+            const minutes = now.getMinutes();
+            const seconds = now.getSeconds();
+
+            // 일일 급여를 이번 달 영업일 기준으로 계산
+            const year = now.getFullYear();
+            const month = now.getMonth();
+            const totalWorkingDays = getWorkingDaysInMonth(year, month);
+            const dailyWage = salary / totalWorkingDays;
+
+            if (hours < 9) {
+                return {
+                    status: 'beforeWork',
+                    earning: 0,
+                    progress: 0
+                };
+            }
+
+            if (hours >= 18) {
+                return {
+                    status: 'afterWork',
+                    earning: dailyWage,
+                    progress: 100
+                };
+            }
+
+            // 근무 중
+            const workStartHour = 9;
+            const totalMinutesWorked = (hours - workStartHour) * 60 + minutes + seconds / 60;
+            const minuteRate = dailyWage / (9 * 60); // 9시간 = 540분
+            const currentEarning = minuteRate * totalMinutesWorked;
+
+            const progress = (totalMinutesWorked / 540) * 100;
+            const minutesUntilEnd = 540 - totalMinutesWorked;
+
+            return {
+                status: 'working',
+                earning: currentEarning,
+                progress: progress,
+                minutesUntilEnd: Math.ceil(minutesUntilEnd)
+            };
+        }
+
+        function formatNumber(num) {
+            return Math.floor(num).toLocaleString('ko-KR');
+        }
+
+        function updateDisplay() {
+            // 오늘의 수익 업데이트
+            const result = calculateEarnings();
+            const earningEl = document.getElementById('currentEarning');
+            const timeInfoEl = document.getElementById('timeInfo');
+            const progressBar = document.getElementById('progressBar');
+            const progressPercent = document.getElementById('progressPercent');
+
+            earningEl.textContent = formatNumber(result.earning);
+            progressBar.style.width = result.progress + '%';
+            progressPercent.textContent = result.progress.toFixed(1) + '%';
+
+            const now = new Date();
+            const timeString = now.toLocaleTimeString('ko-KR');
+
+            if (result.status === 'working') {
+                timeInfoEl.textContent = `${timeString} | 퇴근까지 ${result.minutesUntilEnd}분`;
+            } else if (result.status === 'afterWork') {
+                timeInfoEl.textContent = `${timeString} | 오늘 업무 완료`;
+            } else if (result.status === 'beforeWork') {
+                timeInfoEl.textContent = `${timeString} | 출근 전`;
+            } else {
+                timeInfoEl.textContent = `${timeString} | 주말`;
+            }
+
+            // 월별 수익 업데이트
+            const monthly = calculateMonthlyEarnings();
+
+            document.getElementById('monthlyEarning').textContent = formatNumber(monthly.earnedSoFar);
+            document.getElementById('earnedSoFar').textContent = formatNumber(monthly.earnedSoFar);
+            document.getElementById('remainingAmount').textContent = formatNumber(monthly.remainingAmount);
+            document.getElementById('monthlyProgressBar').style.width = monthly.progress + '%';
+            document.getElementById('monthlyProgressPercent').textContent = monthly.progress.toFixed(1) + '%';
+            document.getElementById('currentWorkingDay').textContent = monthly.currentWorkingDay;
+            document.getElementById('totalWorkingDays').textContent = monthly.totalWorkingDays;
+            document.getElementById('remainingWorkingDays').textContent = monthly.remainingWorkingDays;
+
+            const monthString = (now.getMonth() + 1) + '월';
+            document.getElementById('monthlyInfo').textContent = `${monthString} ${monthly.currentWorkingDay}일차 근무 중`;
+        }
+
+        function updateMotivationalMessage() {
+            const result = calculateEarnings();
+            const monthly = calculateMonthlyEarnings();
+            const messageEl = document.getElementById('motivationalMessage');
+            let messages;
+
+            // 50% 확률로 월간 메시지 또는 일반 메시지 표시
+            const showMonthlyMessage = Math.random() > 0.4 && monthly.progress > 5;
+
+            if (showMonthlyMessage) {
+                messages = motivationalMessages.monthly;
+            } else {
+                switch(result.status) {
+                    case 'working':
+                        messages = motivationalMessages.working;
+                        break;
+                    case 'afterWork':
+                        messages = motivationalMessages.afterWork;
+                        break;
+                    case 'beforeWork':
+                        messages = motivationalMessages.beforeWork;
+                        break;
+                    case 'weekend':
+                        messages = motivationalMessages.weekend;
+                        break;
+                    default:
+                        messages = motivationalMessages.working;
+                }
+            }
+
+            const randomMessage = messages[Math.floor(Math.random() * messages.length)];
+            let displayMessage = randomMessage;
+
+            if (result.status === 'working' && randomMessage.includes('{minutes}')) {
+                displayMessage = randomMessage.replace('{minutes}', result.minutesUntilEnd);
+            }
+
+            if (randomMessage.includes('{percent}')) {
+                displayMessage = randomMessage.replace('{percent}', Math.floor(monthly.progress));
+            }
+
+            messageEl.textContent = displayMessage;
+
+            // 애니메이션 효과를 위해 클래스 재적용
+            const messageCard = document.getElementById('messageCard');
+            messageCard.classList.remove('message-fade');
+            setTimeout(() => {
+                messageCard.classList.add('message-fade');
+            }, 10);
+        }
+
+        function startTracking() {
+            const input = document.getElementById('salaryInput');
+            salary = parseFloat(input.value);
+
+            if (!salary || salary <= 0) {
+                alert('올바른 월급을 입력해주세요');
+                return;
+            }
+
+            // 시급, 분급, 초급 계산
+            const now = new Date();
+            const year = now.getFullYear();
+            const month = now.getMonth();
+            const totalWorkingDays = getWorkingDaysInMonth(year, month);
+            const dailyWage = salary / totalWorkingDays;
+            const hourlyRate = dailyWage / 9;
+            const minuteRate = hourlyRate / 60;
+            const secondRate = minuteRate / 60;
+
+            document.getElementById('hourlyRate').textContent = formatNumber(hourlyRate);
+            document.getElementById('minuteRate').textContent = formatNumber(minuteRate);
+            document.getElementById('secondRate').textContent = formatNumber(secondRate);
+
+            // UI 전환
+            document.getElementById('inputSection').classList.add('hidden');
+            document.getElementById('earningSection').classList.remove('hidden');
+            document.getElementById('messageCard').classList.remove('hidden');
+
+            // 초기 업데이트
+            updateDisplay();
+            updateMotivationalMessage();
+
+            // 1초마다 업데이트
+            updateInterval = setInterval(updateDisplay, 1000);
+
+            // 10초마다 메시지 변경
+            messageInterval = setInterval(updateMotivationalMessage, 10000);
+        }
+
+        function resetTracking() {
+            clearInterval(updateInterval);
+            clearInterval(messageInterval);
+
+            document.getElementById('inputSection').classList.remove('hidden');
+            document.getElementById('earningSection').classList.add('hidden');
+            document.getElementById('messageCard').classList.add('hidden');
+            document.getElementById('salaryInput').value = '';
+            salary = 0;
+        }
+
+        // Service Worker 등록
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('/service-worker.js')
+                    .then((registration) => {
+                        console.log('Service Worker 등록 성공:', registration.scope);
+                    })
+                    .catch((error) => {
+                        console.log('Service Worker 등록 실패:', error);
+                    });
+            });
+        }
+
+        // PWA 설치 프롬프트
+        let deferredPrompt;
+        window.addEventListener('beforeinstallprompt', (e) => {
+            e.preventDefault();
+            deferredPrompt = e;
+            console.log('PWA 설치 가능');
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>아이콘 생성기 - 월급 루팡기</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            margin: 0;
+            padding: 20px;
+        }
+        .container {
+            background: white;
+            border-radius: 20px;
+            padding: 40px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            text-align: center;
+            max-width: 500px;
+        }
+        h1 {
+            color: #333;
+            margin-bottom: 10px;
+        }
+        p {
+            color: #666;
+            margin-bottom: 30px;
+        }
+        canvas {
+            border: 2px solid #e0e0e0;
+            border-radius: 10px;
+            margin: 20px 0;
+        }
+        button {
+            background: #2563EB;
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            font-size: 16px;
+            border-radius: 10px;
+            cursor: pointer;
+            margin: 10px;
+            transition: all 0.3s;
+        }
+        button:hover {
+            background: #1d4ed8;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(37, 99, 235, 0.3);
+        }
+        .info {
+            background: #f0f9ff;
+            border-left: 4px solid #2563EB;
+            padding: 15px;
+            margin-top: 20px;
+            text-align: left;
+            border-radius: 5px;
+        }
+        .info strong {
+            color: #2563EB;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>💰 월급 루팡기 아이콘 생성</h1>
+        <p>PWA 앱 아이콘을 생성합니다</p>
+
+        <canvas id="canvas192" width="192" height="192"></canvas>
+        <br>
+        <button onclick="downloadIcon(192)">192x192 아이콘 다운로드</button>
+
+        <canvas id="canvas512" width="512" height="512"></canvas>
+        <br>
+        <button onclick="downloadIcon(512)">512x512 아이콘 다운로드</button>
+
+        <div class="info">
+            <strong>📋 설치 방법:</strong><br>
+            1. 위의 두 버튼을 클릭하여 icon-192.png와 icon-512.png를 다운로드하세요.<br>
+            2. 다운로드한 파일을 index.html이 있는 폴더에 저장하세요.<br>
+            3. 이제 PWA로 설치할 준비가 완료되었습니다!
+        </div>
+    </div>
+
+    <script>
+        function drawIcon(canvas, size) {
+            const ctx = canvas.getContext('2d');
+
+            // 배경 그라데이션
+            const gradient = ctx.createLinearGradient(0, 0, size, size);
+            gradient.addColorStop(0, '#2563EB');
+            gradient.addColorStop(1, '#1d4ed8');
+            ctx.fillStyle = gradient;
+            ctx.fillRect(0, 0, size, size);
+
+            // 돈 이모지 그리기
+            const fontSize = size * 0.5;
+            ctx.font = `${fontSize}px Arial`;
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText('💰', size / 2, size / 2);
+
+            // 텍스트 그리기
+            const textSize = size * 0.12;
+            ctx.font = `bold ${textSize}px sans-serif`;
+            ctx.fillStyle = 'white';
+            ctx.shadowColor = 'rgba(0,0,0,0.3)';
+            ctx.shadowBlur = 4;
+            ctx.shadowOffsetY = 2;
+            ctx.fillText('월급루팡기', size / 2, size * 0.85);
+        }
+
+        // 192x192 아이콘 그리기
+        const canvas192 = document.getElementById('canvas192');
+        drawIcon(canvas192, 192);
+
+        // 512x512 아이콘 그리기
+        const canvas512 = document.getElementById('canvas512');
+        drawIcon(canvas512, 512);
+
+        function downloadIcon(size) {
+            const canvas = document.getElementById(`canvas${size}`);
+            const link = document.createElement('a');
+            link.download = `icon-${size}.png`;
+            link.href = canvas.toDataURL('image/png');
+            link.click();
+        }
+    </script>
+</body>
+</html>

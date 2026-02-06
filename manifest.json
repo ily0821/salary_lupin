@@ -1,0 +1,24 @@
+{
+  "name": "월급 루팡기",
+  "short_name": "월급루팡기",
+  "description": "실시간 월급 현황을 확인하는 앱",
+  "start_url": "/index.html",
+  "display": "standalone",
+  "background_color": "#EFF6FF",
+  "theme_color": "#2563EB",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
