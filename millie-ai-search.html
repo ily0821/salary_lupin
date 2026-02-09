@@ -1,0 +1,623 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="밀리의 서재 AI 검색 서비스">
+    <title>밀리의 서재 AI 검색</title>
+
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+    <style>
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        @keyframes slideIn {
+            from { transform: translateX(-100%); }
+            to { transform: translateX(0); }
+        }
+
+        @keyframes slideUp {
+            from { transform: translateY(50px); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+
+        @keyframes pulse-dot {
+            0%, 100% { opacity: 0.2; }
+            50% { opacity: 1; }
+        }
+
+        @keyframes bounce {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-10px); }
+        }
+
+        .fade-in {
+            animation: fadeIn 0.5s ease-out;
+        }
+
+        .slide-in {
+            animation: slideIn 0.3s ease-out;
+        }
+
+        .slide-up {
+            animation: slideUp 0.5s ease-out;
+        }
+
+        .pulse-dot {
+            animation: pulse-dot 1.4s infinite;
+        }
+
+        .bounce {
+            animation: bounce 1s infinite;
+        }
+
+        .typing-cursor::after {
+            content: '|';
+            animation: blink 1s infinite;
+        }
+
+        @keyframes blink {
+            0%, 100% { opacity: 0; }
+            50% { opacity: 1; }
+        }
+
+        @keyframes rotate {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+
+        .rotate {
+            animation: rotate 2s linear infinite;
+        }
+
+        /* 밀리 브랜드 컬러 */
+        .millie-yellow { background-color: #FFD400; }
+        .millie-black { background-color: #000000; }
+        .text-millie-yellow { color: #FFD400; }
+
+        /* 스크롤바 스타일링 */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: #f1f1f1;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #FFD400;
+            border-radius: 4px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: #E6C000;
+        }
+
+        /* Toast Animation */
+        @keyframes toast-in {
+            from { transform: translateY(-100%); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+
+        .toast-in {
+            animation: toast-in 0.3s ease-out;
+        }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect, useRef } = React;
+
+        // Mock Data (Enhanced)
+        const RAG_LOADING_STAGES = [
+            { stage: 'emotion', message: '사용자의 감정을 분석하고 있어요...', duration: 1000 },
+            { stage: 'intent', message: '에세이 서가를 탐색하는 중...', duration: 1100 },
+            { stage: 'matching', message: '최적의 구절을 매칭하고 있어요...', duration: 1200 }
+        ];
+
+        const FAILOVER_LOADING_STAGES = [
+            { stage: 'internal', message: '밀리 서재 내부 데이터베이스 검색 중...', duration: 3000 },
+            { stage: 'transition', message: '앗! 밀리 서재에는 없네요. 외부 도서관을 찾아볼게요!', duration: 3000 },
+            { stage: 'external', message: '전세계 도서 데이터베이스를 탐색하는 중...', duration: 2000 }
+        ];
+
+        const SEARCH_RESULTS = {
+            "트렌드 코리아": [
+                { id: 1, title: "트렌드 코리아 2025", author: "김난도 외", coverColor: "#FFD700", summary: "2025년 대한민국 트렌드를 예측하는 필독서", year: 2024 },
+                { id: 2, title: "트렌드 코리아 2024", author: "김난도 외", coverColor: "#FF6B6B", summary: "밀레니얼과 Z세대의 소비 트렌드 분석", year: 2023 },
+                { id: 3, title: "90년생이 온다", author: "임홍택", coverColor: "#4ECDC4", summary: "90년대생의 사고방식과 라이프스타일", year: 2018 },
+                { id: 4, title: "요즘 어른들의 사회", author: "김선우", coverColor: "#95E1D3", summary: "현대 사회의 트렌드와 문화 현상 분석", year: 2023 }
+            ]
+        };
+
+        const RAG_RECOMMENDATIONS = {
+            "우울": {
+                intent: "감정 치유",
+                analysis: "우울한 감정을 느끼고 계시는군요. 혼자가 아니라는 걸 알려드리고 싶어요. 지금부터 추천해드릴 세 권의 책은 각각 다른 방식으로 당신의 마음을 어루만져줄 거예요. 첫 번째 '미드나잇 라이브러리'는 절망의 순간에서도 삶의 가능성을 발견하게 해주는 판타지 소설이에요. 두 번째 '달러구트 꿈 백화점'은 일상의 피로를 잊게 하는 따뜻한 이야기로, 마치 꿈속을 여행하듯 당신을 안전한 공간으로 데려갈 거예요. 마지막으로 '언어의 온도'는 짧은 문장들이 주는 위로의 힘을 보여줘요. 각 문장이 당신의 마음에 작은 빛이 되어줄 거라 확신해요.",
+                books: [
+                    {
+                        id: 10,
+                        title: "미드나잇 라이브러리",
+                        author: "매트 헤이그",
+                        coverColor: "#6C5CE7",
+                        summary: "삶의 여러 가능성을 보여주는 판타지 소설",
+                        reason: "절망의 순간에서 희망을 발견하는 이야기. 다른 선택을 했다면 어땠을까 하는 질문에 대한 따뜻한 답변을 제시합니다.",
+                        detailedDescription: "주인공 노라는 삶을 포기하려는 순간, 무한한 책들이 있는 미드나잇 라이브러리에 도착합니다. 각 책은 그녀가 다른 선택을 했을 때의 삶을 보여주죠. 록스타가 된 삶, 빙하학자가 된 삶, 사랑했던 사람과 결혼한 삶... 하지만 그 어떤 삶도 완벽하지 않았어요."
+                    },
+                    {
+                        id: 11,
+                        title: "달러구트 꿈 백화점",
+                        author: "이미예",
+                        coverColor: "#FD79A8",
+                        summary: "꿈을 사고파는 신비한 백화점의 이야기",
+                        reason: "일상의 피로를 잊게 하는 따뜻한 판타지. 현실에서 잠시 벗어나 안전한 공간에서 휴식을 취할 수 있게 해줍니다.",
+                        detailedDescription: "잠들어야만 입장할 수 있는 신비로운 백화점, 달러구트. 이곳에서는 온갖 종류의 꿈을 판매합니다. 단골 고객들은 자신이 원하는 꿈을 골라 잠들고, 꿈 제작자들은 최고의 꿈을 만들기 위해 노력하죠."
+                    },
+                    {
+                        id: 12,
+                        title: "언어의 온도",
+                        author: "이기주",
+                        coverColor: "#FDCB6E",
+                        summary: "말과 글이 전하는 따뜻한 위로",
+                        reason: "마음을 어루만지는 문장들의 힘. 짧지만 강렬한 울림을 주는 글들이 당신의 감정을 대변해줄 거예요.",
+                        detailedDescription: "우리가 일상에서 무심코 지나치는 단어와 문장들. 하지만 그 속에는 놀라운 온기가 숨어있습니다. 저자는 '격려', '위로', '공감' 같은 단어들이 어떻게 사람의 마음을 움직이는지, 실제 경험과 이야기를 통해 들려줍니다."
+                    }
+                ],
+                followUpQuestions: ["더 위로가 되는 책 추천해줘", "이 작가의 다른 책은?", "감동적인 소설 알려줘"]
+            },
+            "힐링": {
+                intent: "심리적 안정",
+                analysis: "휴식과 치유가 필요한 시간이네요. 때로는 멈추고, 숨 쉬고, 나 자신을 돌아보는 것이 가장 중요합니다. 제가 추천하는 세 권의 책은 당신에게 그런 여유를 선물할 거예요. '나는 나로 살기로 했다'는 타인의 시선에서 벗어나 자신의 삶을 되찾는 이야기를, '보노보노처럼 살다니 다행이야'는 작은 것에서 행복을 찾는 지혜를, '죽고 싶지만 떡볶이는 먹고 싶어'는 힘든 감정과 함께 살아가는 용기를 보여줍니다. 이 책들은 당신이 스스로에게 더 친절해질 수 있도록 도와줄 거예요.",
+                books: [
+                    { id: 13, title: "나는 나로 살기로 했다", author: "김수현", coverColor: "#74B9FF", summary: "타인의 시선에서 벗어나 나답게 사는 법", reason: "자존감 회복에 도움이 되는 에세이. 다른 사람의 기대가 아닌, 내가 원하는 삶을 살아도 괜찮다는 용기를 줍니다.", detailedDescription: "심리상담사인 저자가 실제 상담 사례와 자신의 경험을 바탕으로 쓴 에세이입니다. '착한 사람 콤플렉스', '타인의 평가에 대한 두려움', '완벽주의' 등 우리를 힘들게 하는 심리적 굴레들을 하나씩 풀어냅니다." },
+                    { id: 14, title: "보노보노처럼 살다니 다행이야", author: "김신회", coverColor: "#A29BFE", summary: "보노보노의 철학으로 배우는 삶의 지혜", reason: "일상 속 작은 행복을 발견하게 해줘요. 복잡한 세상에서 단순함의 아름다움을 일깨워줍니다.", detailedDescription: "해달 보노보노는 매일 바다를 바라보고, 친구들과 놀고, 조개를 줍습니다. 대단한 일을 하지 않아도, 특별한 성취가 없어도, 보노보노는 행복해요." },
+                    { id: 15, title: "죽고 싶지만 떡볶이는 먹고 싶어", author: "백세희", coverColor: "#FF7675", summary: "우울증과 함께 살아가는 법", reason: "공감과 위로가 가득한 심리 에세이. 힘든 감정을 부정하지 않고, 그것과 함께 살아가는 방법을 알려줍니다.", detailedDescription: "정신과 전문의와 우울증 환자의 12주간의 상담 기록입니다. '죽고 싶을 만큼 힘들지만, 그래도 떡볶이는 먹고 싶다'는 문장처럼, 이 책은 절망과 희망이 공존하는 인간의 복잡한 마음을 있는 그대로 보여줍니다." }
+                ],
+                followUpQuestions: ["명상에 도움되는 책은?", "자연에 관한 에세이 추천해줘", "마음이 편안해지는 시집 찾아줘"]
+            }
+        };
+
+        const FAILOVER_RESPONSES = {
+            "han_kang": {
+                message: "한강 작가님의 책은 아쉽게도 밀리의 서재에 없어요. 하지만 노벨문학상 수상 작가를 찾으셨으니, 같은 영광을 안은 또 다른 거장을 소개해드릴게요. 헝가리의 라슬로 크라스나호르카이 작가는 한강 작가님과 함께 노벨문학상 후보로 여러 차례 거론된 세계적인 작가예요. 그의 작품들은 인간 존재의 근원적 질문을 던지며, 독특한 문체로 현대 문학의 새로운 지평을 열었습니다.",
+                books: [
+                    { id: 30, title: "사탄 탱고", author: "라슬로 크라스나호르카이", coverColor: "#2C3E50", summary: "헝가리 시골 마을의 몰락과 희망을 그린 대서사시", reason: "노벨문학상 수상 작가의 대표작. 한강 작가님의 서정적이면서도 철학적인 문체를 좋아하신다면 강력 추천합니다.", detailedDescription: "무너져가는 헝가리의 한 농장 공동체를 배경으로, 사기꾼 이리미아쉬가 돌아오면서 벌어지는 이야기입니다. 크라스나호르카이 특유의 긴 문장과 반복적 리듬은 마치 탱고를 추듯 독자를 몰입시키죠. 사회주의 체제 붕괴 이후의 절망과 희망, 인간의 나약함과 위대함이 교차하는 이 소설은 읽는 내내 강렬한 카타르시스를 선사합니다. 벨라 타르 감독이 7시간짜리 영화로 만든 것으로도 유명해요." },
+                    { id: 31, title: "저항의 멜랑콜리아", author: "라슬로 크라스나호르카이", coverColor: "#34495E", summary: "문명의 종말과 인간 본성에 대한 묵시록적 우화", reason: "철학적 깊이가 있는 문학을 원하신다면 이 책입니다. 세계의 붕괴 속에서도 빛나는 인간성을 탐구합니다.", detailedDescription: "한 작은 마을에 거대한 고래 사체가 도착하면서 시작되는 혼란과 폭력의 이야기입니다. 고래는 문명의 붕괴를 상징하고, 사람들은 원초적 야만성을 드러내기 시작하죠. 하지만 그 속에서도 음악가 발라스카는 질서와 아름다움을 지키려 애씁니다. 이 소설은 단순한 디스토피아가 아니라, 예술과 지성이 어떻게 인간을 구원할 수 있는지를 보여주는 철학적 명상입니다." },
+                    { id: 32, title: "전쟁과 전쟁", author: "라슬로 크라스나호르카이", coverColor: "#5D6D7E", summary: "한 남자의 집념과 광기가 빚어낸 문학적 걸작", reason: "인간의 집착과 순수함을 동시에 그린 작품. 문학이 무엇인지, 진정한 예술이 무엇인지 질문을 던집니다.", detailedDescription: "작은 도시의 아카이브 담당자 코린은 자신이 발견한 원고가 세계를 구할 것이라 믿습니다. 그는 이 원고를 지키기 위해 뉴욕까지 여행하며, 그의 여정은 점점 더 기이하고 강박적으로 변해가죠. 이 소설은 예술에 대한 순수한 믿음과 현실의 무관심 사이의 간극을 코믹하면서도 비극적으로 그려냅니다. 돈키호테의 현대판이라 불릴 만큼, 이상주의와 현실주의의 충돌을 예리하게 포착한 작품입니다." }
+                ],
+                followUpQuestions: ["노벨문학상 수상작 더 추천해줘", "동유럽 문학 알려줘", "철학적인 소설 찾아줘"]
+            },
+            default: {
+                message: "이 책은 밀리의 서재에 아직 없어요. 하지만 걱정 마세요! 전세계 도서 데이터베이스를 뒤져서 비슷한 주제와 감성의 책들을 찾아왔어요.",
+                books: [
+                    { id: 20, title: "이처럼 사소한 것들", author: "클레어 키건", coverColor: "#DFE6E9", summary: "소박하지만 깊은 울림을 주는 단편집", reason: "희귀본 대신 추천하는 문학 작품. 짧지만 강렬한 감동을 주는 이야기들로 가득합니다.", detailedDescription: "아일랜드의 작은 마을을 배경으로 한 단편 소설들입니다. 평범한 사람들의 일상 속에 숨겨진 비밀, 말하지 못한 감정들이 섬세하게 그려져 있어요. 특히 표제작 '이처럼 사소한 것들'은 한 소녀가 여름 방학 동안 친척 집에 머물며 겪는 작은 변화를 담고 있는데, 읽고 나면 가슴이 먹먹해집니다." },
+                    { id: 21, title: "불편한 편의점", author: "김호연", coverColor: "#FAB1A0", summary: "편의점에서 펼쳐지는 따뜻한 인간 드라마", reason: "한국 독자들이 사랑한 베스트셀러. 사회 소외 계층의 이야기를 따뜻하게 담아냈습니다.", detailedDescription: "서울 변두리 편의점에서 일하게 된 독거노인과 청년의 이야기입니다. 사회에서 밀려난 두 사람이 편의점이라는 작은 공간에서 만나 서로의 상처를 어루만지며 성장해가는 과정이 감동적이에요. '불편한 편의점'이라는 제목처럼, 이 사회의 불편한 진실들을 직시하면서도, 그 안에서 피어나는 희망과 연대의 메시지를 전합니다." },
+                    { id: 22, title: "작별하지 않는다", author: "한강", coverColor: "#74B9FF", summary: "생과 죽음, 이별에 대한 서정적 산문", reason: "문학적 깊이가 있는 대체 추천. 노벨문학상 수상 작가의 철학적 성찰이 담긴 에세이입니다.", detailedDescription: "소설가 한강이 먼저 떠난 이들을 떠올리며 쓴 산문집입니다. 죽음이라는 절대적 이별 앞에서도, 우리는 정말로 '작별'할 수 있을까요? 저자는 사라진 이들이 여전히 우리 안에 살아있다고, 그래서 진정한 작별은 없다고 말합니다. 시적인 문장들로 가득한 이 책은, 상실의 아픔을 겪고 있는 모든 이들에게 깊은 위로를 전해요." }
+                ],
+                followUpQuestions: ["최근 화제의 책 보여줘", "밀리 베스트셀러는?", "문학상 수상작 추천해줘"]
+            }
+        };
+
+        function detectSearchType(query) {
+            const lowerQuery = query.toLowerCase();
+            if (lowerQuery.includes('추천') || lowerQuery.includes('우울') || lowerQuery.includes('힐링') || lowerQuery.includes('위로') || lowerQuery.includes('읽기 좋은') || lowerQuery.includes('알려줘')) return 'RAG';
+            if (lowerQuery.includes('한강') || lowerQuery.includes('희귀') || lowerQuery.includes('절판') || lowerQuery.includes('고서') || lowerQuery.includes('찾기 힘든')) return 'FAILOVER';
+            return 'BM25';
+        }
+
+        function getFailoverType(query) {
+            const lowerQuery = query.toLowerCase();
+            if (lowerQuery.includes('한강')) return 'han_kang';
+            return 'default';
+        }
+
+        function extractEmotion(query) {
+            if (query.includes('우울') || query.includes('슬픔') || query.includes('외로')) return '우울';
+            if (query.includes('힐링') || query.includes('위로') || query.includes('평화')) return '힐링';
+            return '우울';
+        }
+
+        // Icon Components
+        const SearchIcon = () => (<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="8"></circle><path d="m21 21-4.35-4.35"></path></svg>);
+        const BookIcon = () => (<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path></svg>);
+        const MenuIcon = () => (<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>);
+        const XIcon = () => (<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>);
+        const SparklesIcon = () => (<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 3v18M3 12h18M5.6 5.6l12.8 12.8M18.4 5.6L5.6 18.4"></path></svg>);
+        const GlobeIcon = () => (<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"></circle><line x1="2" y1="12" x2="22" y2="12"></line><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path></svg>);
+
+        // Multi-Stage Loading Component
+        const MultiStageLoading = ({ stages, currentStageIndex }) => {
+            if (currentStageIndex >= stages.length) return null;
+            const currentStage = stages[currentStageIndex];
+
+            return (
+                <div className="flex flex-col items-center justify-center py-12 fade-in">
+                    <div className="flex space-x-2 mb-4">
+                        <div className="w-3 h-3 bg-yellow-400 rounded-full pulse-dot" style={{ animationDelay: '0s' }}></div>
+                        <div className="w-3 h-3 bg-yellow-400 rounded-full pulse-dot" style={{ animationDelay: '0.2s' }}></div>
+                        <div className="w-3 h-3 bg-yellow-400 rounded-full pulse-dot" style={{ animationDelay: '0.4s' }}></div>
+                    </div>
+                    <p className="text-gray-600 text-center text-sm font-medium">{currentStage.message}</p>
+                    <div className="mt-4 flex gap-2">
+                        {stages.map((_, idx) => (
+                            <div
+                                key={idx}
+                                className={`w-2 h-2 rounded-full ${idx <= currentStageIndex ? 'bg-yellow-400' : 'bg-gray-300'}`}
+                            />
+                        ))}
+                    </div>
+                </div>
+            );
+        };
+
+        // Toast Notification
+        const Toast = ({ message, type = 'info' }) => (
+            <div className={`fixed top-20 left-1/2 transform -translate-x-1/2 z-50 toast-in ${type === 'warning' ? 'bg-orange-500' : 'bg-blue-500'} text-white px-6 py-3 rounded-lg shadow-2xl`}>
+                <p className="font-semibold">{message}</p>
+            </div>
+        );
+
+        // External Search UI
+        const ExternalSearchUI = () => (
+            <div className="bg-gradient-to-r from-purple-100 to-blue-100 rounded-2xl p-6 mb-6 slide-up border-2 border-purple-300">
+                <div className="flex items-center space-x-3 mb-3">
+                    <div className="rotate">
+                        <GlobeIcon />
+                    </div>
+                    <h3 className="font-bold text-purple-900">외부 도서관 탐색 중</h3>
+                </div>
+                <p className="text-purple-700 text-sm">전세계 도서 데이터베이스에서 비슷한 책을 찾고 있어요...</p>
+            </div>
+        );
+
+        // Book Card Component (Enhanced with Reason Badge)
+        const BookCard = ({ book, showReason = false, showDetailedDesc = false }) => (
+            <div className="bg-white rounded-2xl shadow-lg overflow-hidden hover:shadow-xl transition-shadow fade-in">
+                <div className="h-48 flex items-center justify-center text-white text-xl font-bold" style={{ backgroundColor: book.coverColor }}>
+                    <BookIcon />
+                </div>
+                <div className="p-4">
+                    <h3 className="font-bold text-lg text-gray-900 mb-1">{book.title}</h3>
+                    <p className="text-gray-600 text-sm mb-2">{book.author}</p>
+                    <p className="text-gray-500 text-xs mb-3">{book.summary}</p>
+
+                    {showReason && book.reason && (
+                        <div className="mb-3 p-3 bg-yellow-50 rounded-lg border-l-4 border-yellow-400">
+                            <p className="text-xs text-gray-800 flex items-start">
+                                <span className="mr-2 text-yellow-600">💡</span>
+                                <span className="font-medium">{book.reason}</span>
+                            </p>
+                        </div>
+                    )}
+
+                    {showDetailedDesc && book.detailedDescription && (
+                        <div className="mb-3 p-3 bg-gray-50 rounded-lg">
+                            <p className="text-xs text-gray-700 leading-relaxed">{book.detailedDescription}</p>
+                        </div>
+                    )}
+
+                    <button className="w-full bg-yellow-400 hover:bg-yellow-500 text-black font-semibold py-2 rounded-lg transition-colors">
+                        내 서재 담기
+                    </button>
+                </div>
+            </div>
+        );
+
+        // AI Streaming Response
+        const AIStreamingResponse = ({ text, isComplete }) => {
+            const [displayedText, setDisplayedText] = useState('');
+            const [currentIndex, setCurrentIndex] = useState(0);
+
+            useEffect(() => {
+                if (currentIndex < text.length) {
+                    const timeout = setTimeout(() => {
+                        setDisplayedText(prev => prev + text[currentIndex]);
+                        setCurrentIndex(prev => prev + 1);
+                    }, 25);
+                    return () => clearTimeout(timeout);
+                }
+            }, [currentIndex, text]);
+
+            return (
+                <div className="bg-gradient-to-r from-yellow-50 to-white rounded-2xl p-6 mb-6 fade-in border-l-4 border-yellow-400">
+                    <div className="flex items-start space-x-3">
+                        <div className="bg-yellow-400 rounded-full p-2 flex-shrink-0">
+                            <SparklesIcon />
+                        </div>
+                        <div className="flex-1">
+                            <p className="text-gray-800 leading-relaxed">
+                                {displayedText}
+                                {!isComplete && currentIndex < text.length && <span className="typing-cursor"></span>}
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        // Follow-up Chips
+        const FollowUpChips = ({ questions, onQuestionClick }) => (
+            <div className="mb-6 fade-in">
+                <p className="text-sm text-gray-600 mb-3 font-semibold">💡 이런 질문은 어때요?</p>
+                <div className="flex flex-wrap gap-2">
+                    {questions.map((q, idx) => (
+                        <button key={idx} onClick={() => onQuestionClick(q)} className="px-4 py-2 bg-white border-2 border-yellow-400 text-gray-800 rounded-full text-sm hover:bg-yellow-50 transition-colors">
+                            {q}
+                        </button>
+                    ))}
+                </div>
+            </div>
+        );
+
+        // History Sidebar
+        const HistorySidebar = ({ isOpen, onClose, history, onSelectHistory }) => {
+            if (!isOpen) return null;
+            return (
+                <>
+                    <div className="fixed inset-0 bg-black bg-opacity-50 z-40" onClick={onClose}></div>
+                    <div className="fixed top-0 left-0 h-full w-80 bg-white shadow-2xl z-50 slide-in overflow-y-auto">
+                        <div className="p-6">
+                            <div className="flex justify-between items-center mb-6">
+                                <h2 className="text-xl font-bold text-gray-900">대화 기록</h2>
+                                <button onClick={onClose} className="p-2 hover:bg-gray-100 rounded-lg transition-colors"><XIcon /></button>
+                            </div>
+                            {history.length === 0 ? (
+                                <p className="text-gray-500 text-center py-8">아직 대화 기록이 없어요</p>
+                            ) : (
+                                <div className="space-y-3">
+                                    {history.map((item, idx) => (
+                                        <button key={idx} onClick={() => { onSelectHistory(item); onClose(); }} className="w-full text-left p-4 bg-gray-50 hover:bg-yellow-50 rounded-lg transition-colors">
+                                            <p className="font-medium text-gray-900 mb-1 truncate">{item.query}</p>
+                                            <p className="text-xs text-gray-500">{new Date(item.timestamp).toLocaleString('ko-KR')}</p>
+                                        </button>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                </>
+            );
+        };
+
+        // Main App
+        const App = () => {
+            const [query, setQuery] = useState('');
+            const [searchState, setSearchState] = useState('idle'); // idle, searching, analyzing, complete
+            const [currentStageIndex, setCurrentStageIndex] = useState(0);
+            const [results, setResults] = useState(null);
+            const [history, setHistory] = useState([]);
+            const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+            const [streamingText, setStreamingText] = useState('');
+            const [isStreamComplete, setIsStreamComplete] = useState(false);
+            const [showToast, setShowToast] = useState(false);
+            const [toastMessage, setToastMessage] = useState('');
+            const [showExternalUI, setShowExternalUI] = useState(false);
+
+            const messagesEndRef = useRef(null);
+
+            const scrollToBottom = () => {
+                messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+            };
+
+            useEffect(() => {
+                scrollToBottom();
+            }, [results]);
+
+            const handleSearch = async (searchQuery) => {
+                if (!searchQuery.trim()) return;
+
+                const type = detectSearchType(searchQuery);
+                setSearchState('searching');
+                setResults(null);
+                setCurrentStageIndex(0);
+                setStreamingText('');
+                setIsStreamComplete(false);
+                setShowToast(false);
+                setShowExternalUI(false);
+
+                setHistory(prev => [{ query: searchQuery, timestamp: Date.now(), type }, ...prev]);
+
+                if (type === 'BM25') {
+                    // Case A: Zero Latency - 즉시 결과
+                    await new Promise(resolve => setTimeout(resolve, 100)); // 0.1초
+                    setSearchState('complete');
+                    setResults({
+                        type: 'BM25',
+                        books: SEARCH_RESULTS["트렌드 코리아"]
+                    });
+                } else if (type === 'RAG') {
+                    // Case B: 3초 이상 다단계 분석
+                    const stages = RAG_LOADING_STAGES;
+
+                    for (let i = 0; i < stages.length; i++) {
+                        setCurrentStageIndex(i);
+                        await new Promise(resolve => setTimeout(resolve, stages[i].duration));
+                    }
+
+                    const emotion = extractEmotion(searchQuery);
+                    const ragData = RAG_RECOMMENDATIONS[emotion];
+
+                    // 로딩 완료 후 결과 먼저 설정
+                    setResults({
+                        type: 'RAG',
+                        intent: ragData.intent,
+                        analysis: ragData.analysis,
+                        books: ragData.books,
+                        followUpQuestions: ragData.followUpQuestions
+                    });
+
+                    setSearchState('complete');
+                    setStreamingText(ragData.analysis);
+
+                    // 스트리밍 완료 대기
+                    await new Promise(resolve => setTimeout(resolve, ragData.analysis.length * 25 + 500));
+                    setIsStreamComplete(true);
+                } else {
+                    // Case C: 2-Step Failover
+                    const stages = FAILOVER_LOADING_STAGES;
+
+                    // Step 1: 내부 검색
+                    setCurrentStageIndex(0);
+                    await new Promise(resolve => setTimeout(resolve, stages[0].duration));
+
+                    // Step 2: 전환 토스트
+                    setCurrentStageIndex(1);
+                    setShowToast(true);
+                    setToastMessage(stages[1].message);
+                    await new Promise(resolve => setTimeout(resolve, stages[1].duration));
+                    setShowToast(false);
+
+                    // Step 3: 외부 탐색 UI
+                    setCurrentStageIndex(2);
+                    setShowExternalUI(true);
+                    await new Promise(resolve => setTimeout(resolve, stages[2].duration));
+
+                    // 모든 로딩 완료 후에만 결과 설정
+                    setShowExternalUI(false);
+                    setSearchState('complete');
+                    const failoverType = getFailoverType(searchQuery);
+                    const failoverData = FAILOVER_RESPONSES[failoverType];
+
+                    setResults({
+                        type: 'FAILOVER',
+                        message: failoverData.message,
+                        books: failoverData.books,
+                        followUpQuestions: failoverData.followUpQuestions
+                    });
+                }
+            };
+
+            const handleFollowUpQuestion = (question) => {
+                setQuery(question);
+                handleSearch(question);
+            };
+
+            const isLoading = searchState === 'searching';
+
+            return (
+                <div className="min-h-screen bg-gradient-to-br from-yellow-50 via-white to-gray-50">
+                    {/* Toast */}
+                    {showToast && <Toast message={toastMessage} type="warning" />}
+
+                    {/* Header */}
+                    <header className="bg-black text-white p-4 sticky top-0 z-30 shadow-lg">
+                        <div className="max-w-4xl mx-auto flex items-center justify-between">
+                            <button onClick={() => setIsSidebarOpen(true)} className="p-2 hover:bg-gray-800 rounded-lg transition-colors">
+                                <MenuIcon />
+                            </button>
+                            <h1 className="text-2xl font-bold flex items-center space-x-2">
+                                <BookIcon />
+                                <span>밀리의 서재</span>
+                                <span className="text-yellow-400 text-sm">AI</span>
+                            </h1>
+                            <div className="w-10"></div>
+                        </div>
+                    </header>
+
+                    {/* History Sidebar */}
+                    <HistorySidebar isOpen={isSidebarOpen} onClose={() => setIsSidebarOpen(false)} history={history} onSelectHistory={(item) => { setQuery(item.query); handleSearch(item.query); }} />
+
+                    {/* Main Content */}
+                    <main className="max-w-4xl mx-auto p-4 pb-24">
+                        {/* Welcome */}
+                        {!results && !isLoading && (
+                            <div className="text-center py-16 fade-in">
+                                <div className="text-6xl mb-4">📚</div>
+                                <h2 className="text-3xl font-bold text-gray-900 mb-3">어떤 책을 찾으시나요?</h2>
+                                <p className="text-gray-600 mb-8">책 제목, 작가, 또는 원하는 감성을 자유롭게 말씀해주세요</p>
+                                <div className="flex flex-wrap gap-2 justify-center">
+                                    <button onClick={() => handleSearch("트렌드 코리아 2025")} className="px-4 py-2 bg-white border border-gray-200 rounded-full text-sm hover:bg-gray-50">트렌드 코리아 2025</button>
+                                    <button onClick={() => handleSearch("우울할 때 읽기 좋은 에세이 추천해줘")} className="px-4 py-2 bg-white border border-gray-200 rounded-full text-sm hover:bg-gray-50">우울할 때 읽기 좋은 에세이</button>
+                                    <button onClick={() => handleSearch("한강 작가님 책 보여줘")} className="px-4 py-2 bg-white border border-gray-200 rounded-full text-sm hover:bg-gray-50">한강 작가님 책 보여줘</button>
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Search Results */}
+                        {(isLoading || results) && (
+                            <div className="mt-6">
+                                {/* User Query Chat Bubble */}
+                                <div className="flex justify-end mb-6 fade-in">
+                                    <div className="bg-yellow-400 rounded-2xl px-5 py-3 max-w-md shadow-md">
+                                        <p className="text-gray-900 font-medium">{query}</p>
+                                    </div>
+                                </div>
+
+                                {/* Loading */}
+                                {isLoading && (
+                                    <>
+                                        {results?.type === 'RAG' || detectSearchType(query) === 'RAG' ? (
+                                            <MultiStageLoading stages={RAG_LOADING_STAGES} currentStageIndex={currentStageIndex} />
+                                        ) : results?.type === 'FAILOVER' || detectSearchType(query) === 'FAILOVER' ? (
+                                            <MultiStageLoading stages={FAILOVER_LOADING_STAGES} currentStageIndex={currentStageIndex} />
+                                        ) : null}
+                                    </>
+                                )}
+
+                                {/* External UI */}
+                                {showExternalUI && <ExternalSearchUI />}
+
+                                {/* Results */}
+                                {results && (
+                                    <>
+                                        {results.type === 'RAG' && (
+                                            <AIStreamingResponse text={streamingText} isComplete={isStreamComplete} />
+                                        )}
+
+                                        {results.type === 'FAILOVER' && (
+                                            <div className="bg-gradient-to-r from-orange-50 to-yellow-50 rounded-2xl p-6 mb-6 fade-in border-l-4 border-orange-400">
+                                                <p className="text-gray-800 font-medium">{results.message}</p>
+                                            </div>
+                                        )}
+
+                                        {/* Books */}
+                                        <div className={`grid grid-cols-1 ${results.type === 'BM25' ? 'md:grid-cols-3' : 'md:grid-cols-2'} gap-4 mb-6`}>
+                                            {results.books?.map(book => (
+                                                <BookCard
+                                                    key={book.id}
+                                                    book={book}
+                                                    showReason={results.type === 'RAG' || results.type === 'FAILOVER'}
+                                                    showDetailedDesc={results.type === 'FAILOVER'}
+                                                />
+                                            ))}
+                                        </div>
+
+                                        {results.followUpQuestions && (
+                                            <FollowUpChips questions={results.followUpQuestions} onQuestionClick={handleFollowUpQuestion} />
+                                        )}
+                                    </>
+                                )}
+
+                                <div ref={messagesEndRef} />
+                            </div>
+                        )}
+                    </main>
+
+                    {/* Fixed Search Bar */}
+                    <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 p-4 shadow-lg">
+                        <div className="max-w-4xl mx-auto">
+                            <form onSubmit={(e) => { e.preventDefault(); handleSearch(query); }} className="flex space-x-2">
+                                <input type="text" value={query} onChange={(e) => setQuery(e.target.value)} placeholder="책 제목, 작가, 또는 원하는 감성을 입력하세요..." className="flex-1 px-4 py-3 border-2 border-gray-300 rounded-xl focus:border-yellow-400 focus:outline-none" />
+                                <button type="submit" disabled={isLoading || !query.trim()} className="bg-yellow-400 hover:bg-yellow-500 text-black font-bold px-6 py-3 rounded-xl transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center">
+                                    <SearchIcon />
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>
