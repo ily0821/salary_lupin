@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>💍 특별한 질문</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            overflow: hidden;
+            position: relative;
+        }
+
+        /* 하트 배경 애니메이션 */
+        .heart-bg {
+            position: absolute;
+            font-size: 30px;
+            opacity: 0.2;
+            animation: float 8s infinite ease-in-out;
+        }
+
+        @keyframes float {
+            0%, 100% { transform: translateY(0) rotate(0deg); }
+            50% { transform: translateY(-30px) rotate(10deg); }
+        }
+
+        .container {
+            text-align: center;
+            background: rgba(255, 255, 255, 0.95);
+            padding: 60px 40px;
+            border-radius: 30px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            max-width: 500px;
+            position: relative;
+            z-index: 10;
+        }
+
+        .ring-icon {
+            font-size: 80px;
+            margin-bottom: 20px;
+            animation: bounce 2s infinite;
+        }
+
+        @keyframes bounce {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-20px); }
+        }
+
+        h1 {
+            font-size: 42px;
+            color: #333;
+            margin-bottom: 40px;
+            font-weight: bold;
+            letter-spacing: -1px;
+        }
+
+        .button-container {
+            display: flex;
+            gap: 20px;
+            justify-content: center;
+            margin-top: 40px;
+            position: relative;
+            height: 70px;
+        }
+
+        button {
+            padding: 18px 50px;
+            font-size: 20px;
+            font-weight: bold;
+            border: none;
+            border-radius: 50px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+            font-family: inherit;
+        }
+
+        .yes-btn {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            color: white;
+        }
+
+        .yes-btn:hover {
+            transform: scale(1.1);
+            box-shadow: 0 6px 25px rgba(245, 87, 108, 0.5);
+        }
+
+        .no-btn {
+            background: linear-gradient(135deg, #a8edea 0%, #fed6e3 100%);
+            color: #555;
+            position: absolute;
+            transition: none !important;
+        }
+
+        /* 승낙 화면 */
+        .success-screen {
+            display: none;
+            text-align: center;
+        }
+
+        .success-screen.active {
+            display: block;
+            animation: fadeIn 1s ease;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: scale(0.8); }
+            to { opacity: 1; transform: scale(1); }
+        }
+
+        .success-screen h2 {
+            font-size: 48px;
+            color: #f5576c;
+            margin-bottom: 20px;
+        }
+
+        .success-screen p {
+            font-size: 24px;
+            color: #666;
+            margin-top: 20px;
+        }
+
+        .hearts-explosion {
+            font-size: 50px;
+            animation: explode 1s ease-out;
+        }
+
+        @keyframes explode {
+            0% { transform: scale(0); opacity: 0; }
+            50% { transform: scale(1.5); opacity: 1; }
+            100% { transform: scale(1); opacity: 1; }
+        }
+
+        .confetti {
+            position: absolute;
+            width: 10px;
+            height: 10px;
+            background: #f5576c;
+            animation: fall 3s linear infinite;
+        }
+
+        @keyframes fall {
+            to { transform: translateY(100vh) rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <!-- 배경 하트들 -->
+    <div class="heart-bg" style="top: 10%; left: 10%;">💕</div>
+    <div class="heart-bg" style="top: 20%; right: 15%; animation-delay: 1s;">💖</div>
+    <div class="heart-bg" style="bottom: 15%; left: 20%; animation-delay: 2s;">💗</div>
+    <div class="heart-bg" style="bottom: 25%; right: 10%; animation-delay: 1.5s;">💝</div>
+    <div class="heart-bg" style="top: 50%; left: 5%; animation-delay: 0.5s;">💓</div>
+    <div class="heart-bg" style="top: 60%; right: 5%; animation-delay: 2.5s;">💞</div>
+
+    <div class="container">
+        <!-- 초기 질문 화면 -->
+        <div id="question-screen">
+            <div class="ring-icon">💍</div>
+            <h1>나랑 결혼해줄래?</h1>
+
+            <div class="button-container" id="buttonContainer">
+                <button class="yes-btn" onclick="handleYes()">예</button>
+                <button class="no-btn" id="noBtn">아니오</button>
+            </div>
+        </div>
+
+        <!-- 승낙 화면 -->
+        <div class="success-screen" id="successScreen">
+            <div class="hearts-explosion">💕💖💗💝💓💞</div>
+            <h2>와아아악! 🎉</h2>
+            <p>평생 행복하게 해줄게요!</p>
+            <div style="font-size: 60px; margin-top: 30px;">👰💑🤵</div>
+        </div>
+    </div>
+
+    <script>
+        const noBtn = document.getElementById('noBtn');
+        const container = document.getElementById('buttonContainer');
+
+        let noBtnPosition = { x: 150, y: 0 }; // 초기 위치 (예 버튼 오른쪽)
+
+        // 초기 위치 설정
+        noBtn.style.left = noBtnPosition.x + 'px';
+        noBtn.style.top = noBtnPosition.y + 'px';
+
+        // 마우스 움직임 감지
+        document.addEventListener('mousemove', function(e) {
+            if (document.getElementById('successScreen').classList.contains('active')) {
+                return; // 승낙 후에는 더 이상 추적하지 않음
+            }
+
+            const rect = noBtn.getBoundingClientRect();
+            const btnCenterX = rect.left + rect.width / 2;
+            const btnCenterY = rect.top + rect.height / 2;
+
+            const mouseX = e.clientX;
+            const mouseY = e.clientY;
+
+            // 마우스와 버튼 사이의 거리 계산
+            const distance = Math.sqrt(
+                Math.pow(mouseX - btnCenterX, 2) +
+                Math.pow(mouseY - btnCenterY, 2)
+            );
+
+            // 100px 이내로 접근하면 도망가기
+            if (distance < 100) {
+                moveNoButton();
+            }
+        });
+
+        // 아니오 버튼 클릭 시도 시에도 도망
+        noBtn.addEventListener('mouseenter', function() {
+            moveNoButton();
+        });
+
+        noBtn.addEventListener('click', function(e) {
+            e.preventDefault();
+            moveNoButton();
+        });
+
+        function moveNoButton() {
+            const containerRect = container.getBoundingClientRect();
+
+            // 컨테이너 내에서 랜덤한 위치 생성
+            const maxX = containerRect.width - noBtn.offsetWidth - 20;
+            const maxY = 100; // 높이 제한
+
+            let newX, newY;
+            let attempts = 0;
+
+            // 현재 위치와 충분히 떨어진 새 위치 찾기
+            do {
+                newX = Math.random() * maxX - (containerRect.width / 2) + (noBtn.offsetWidth / 2);
+                newY = (Math.random() * maxY) - 30;
+                attempts++;
+            } while (
+                Math.abs(newX - noBtnPosition.x) < 80 &&
+                attempts < 10
+            );
+
+            noBtnPosition.x = newX;
+            noBtnPosition.y = newY;
+
+            noBtn.style.left = noBtnPosition.x + 'px';
+            noBtn.style.top = noBtnPosition.y + 'px';
+        }
+
+        function handleYes() {
+            document.getElementById('question-screen').style.display = 'none';
+            document.getElementById('successScreen').classList.add('active');
+
+            // 폭죽 효과
+            createConfetti();
+        }
+
+        function createConfetti() {
+            const colors = ['#f093fb', '#f5576c', '#a8edea', '#fed6e3', '#ffd89b'];
+
+            for (let i = 0; i < 50; i++) {
+                setTimeout(() => {
+                    const confetti = document.createElement('div');
+                    confetti.className = 'confetti';
+                    confetti.style.left = Math.random() * 100 + '%';
+                    confetti.style.backgroundColor = colors[Math.floor(Math.random() * colors.length)];
+                    confetti.style.animationDelay = Math.random() * 2 + 's';
+                    document.body.appendChild(confetti);
+
+                    setTimeout(() => confetti.remove(), 3000);
+                }, i * 50);
+            }
+        }
+    </script>
+</body>
+</html>
